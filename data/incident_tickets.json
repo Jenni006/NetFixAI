@@ -1,0 +1,198 @@
+{
+  "incidents": [
+    {
+      "incident_id": "INC-2024-0315-001",
+      "title": "ROUTER-LAB-01 BGP session drop and CPU exhaustion",
+      "severity": "P1",
+      "status": "OPEN",
+      "created_at": "2024-03-15T08:15:00Z",
+      "updated_at": "2024-03-15T08:40:00Z",
+      "affected_devices": ["ROUTER-LAB-01", "ROUTER-LAB-02", "SW-LAB-01", "5G-AMF-01", "5G-SMF-01"],
+      "lab_network": "NET-LAB-ALPHA",
+      "symptom_description": "ROUTER-LAB-01 experiencing CPU exhaustion at 92% and memory at 95%. BGP session with peer 10.0.0.3 dropped due to hold timer expiry. Interface GigabitEthernet0/2 went DOWN causing cascade failure across downstream devices. bgpd process crashed and required manual restart.",
+      "alerts_triggered": [
+        "CPU_CRITICAL",
+        "MEMORY_CRITICAL",
+        "BGP_SESSION_DOWN",
+        "INTERFACE_DOWN",
+        "PROCESS_CRASH"
+      ],
+      "root_cause": "Memory exhaustion caused by traffic spike led to CPU overload. BGP hold timer expired because keepalive packets were not sent in time due to CPU starvation. Interface GigabitEthernet0/2 went down due to link failure compounding the BGP issue.",
+      "timeline": [
+        {"time": "2024-03-15T08:10:22Z", "event": "CPU utilization reached 78% - WARNING threshold crossed"},
+        {"time": "2024-03-15T08:11:00Z", "event": "Memory utilization reached 82% - WARNING threshold crossed"},
+        {"time": "2024-03-15T08:14:00Z", "event": "Memory utilization reached 95% - CRITICAL threshold crossed"},
+        {"time": "2024-03-15T08:15:00Z", "event": "Interface GigabitEthernet0/2 went DOWN"},
+        {"time": "2024-03-15T08:15:03Z", "event": "BGP session with peer 10.0.0.3 dropped - hold timer expired"},
+        {"time": "2024-03-15T08:15:10Z", "event": "OSPF neighbor 10.0.0.2 went DOWN"},
+        {"time": "2024-03-15T08:17:00Z", "event": "bgpd process crashed - restart attempt 1/3"},
+        {"time": "2024-03-15T08:18:30Z", "event": "bgpd process failed all restart attempts"},
+        {"time": "2024-03-15T08:35:00Z", "event": "bgpd manually restarted by operator"},
+        {"time": "2024-03-15T08:40:00Z", "event": "BGP session re-established, system stable"}
+      ],
+      "resolution": "",
+      "similar_incidents": ["INC-2024-0228-003", "INC-2024-0101-007"],
+      "test_cases_blocked": [
+        "TC-ALPHA-001: BGP Convergence Test",
+        "TC-ALPHA-002: MPLS LSP Validation",
+        "TC-ALPHA-003: Traffic Engineering Test"
+      ]
+    },
+    {
+      "incident_id": "INC-2024-0228-003",
+      "title": "ROUTER-LAB-01 BGP flap due to CPU spike",
+      "severity": "P1",
+      "status": "RESOLVED",
+      "created_at": "2024-02-28T14:22:00Z",
+      "updated_at": "2024-02-28T16:45:00Z",
+      "affected_devices": ["ROUTER-LAB-01", "ROUTER-LAB-02"],
+      "lab_network": "NET-LAB-ALPHA",
+      "symptom_description": "ROUTER-LAB-01 CPU spiked to 89% during load test causing BGP hold timer to expire. BGP session flapped 3 times within 10 minutes. OSPF adjacency also dropped briefly.",
+      "alerts_triggered": [
+        "CPU_WARNING",
+        "BGP_SESSION_DOWN",
+        "OSPF_NEIGHBOR_DOWN"
+      ],
+      "root_cause": "OSPF hello timer set too aggressively at 1 second caused excessive CPU load during high traffic periods. Combined with insufficient memory guard thresholds this led to BGP hold timer expiry.",
+      "timeline": [
+        {"time": "2024-02-28T14:22:00Z", "event": "CPU utilization reached 85% WARNING"},
+        {"time": "2024-02-28T14:25:00Z", "event": "BGP session dropped - hold timer expired"},
+        {"time": "2024-02-28T14:28:00Z", "event": "BGP session re-established"},
+        {"time": "2024-02-28T14:35:00Z", "event": "BGP session dropped again"},
+        {"time": "2024-02-28T16:30:00Z", "event": "OSPF hello timer increased to 10 seconds"},
+        {"time": "2024-02-28T16:45:00Z", "event": "System stable - BGP session holding"}
+      ],
+      "resolution": "Increased OSPF hello timer from 1 second to 10 seconds. Added memory guard threshold at 85% to trigger garbage collection. Applied BGP graceful-restart configuration. Added bgp timers 30 90 to reduce keepalive frequency.",
+      "resolution_commands": [
+        "router ospf 1",
+        " timers throttle spf 5000 10000 40000",
+        " timers lsa all 5000",
+        "router bgp 65001",
+        " bgp graceful-restart",
+        " timers bgp 30 90",
+        "memory reserve critical 10240"
+      ],
+      "similar_incidents": ["INC-2024-0101-007"],
+      "test_cases_blocked": [
+        "TC-ALPHA-001: BGP Convergence Test"
+      ]
+    },
+    {
+      "incident_id": "INC-2024-0101-007",
+      "title": "NET-LAB-ALPHA complete outage due to memory leak",
+      "severity": "P1",
+      "status": "RESOLVED",
+      "created_at": "2024-01-01T03:15:00Z",
+      "updated_at": "2024-01-01T07:30:00Z",
+      "affected_devices": ["ROUTER-LAB-01", "ROUTER-LAB-02", "SW-LAB-01", "FW-LAB-01"],
+      "lab_network": "NET-LAB-ALPHA",
+      "symptom_description": "Complete lab outage caused by memory leak in IOS-XE 17.6.1. Memory grew to 100% over 6 hours causing all routing processes to crash simultaneously.",
+      "alerts_triggered": [
+        "MEMORY_CRITICAL",
+        "CPU_CRITICAL",
+        "BGP_SESSION_DOWN",
+        "OSPF_NEIGHBOR_DOWN",
+        "PROCESS_CRASH"
+      ],
+      "root_cause": "Known memory leak bug in IOS-XE 17.6.1 affecting ASR 9000 platform. Memory leak in BGP process caused gradual memory exhaustion over 6 hours leading to complete routing process failure.",
+      "timeline": [
+        {"time": "2024-01-01T03:15:00Z", "event": "Memory utilization crossed 80% WARNING"},
+        {"time": "2024-01-01T05:00:00Z", "event": "Memory utilization crossed 90%"},
+        {"time": "2024-01-01T07:00:00Z", "event": "Memory at 100% - all processes crashing"},
+        {"time": "2024-01-01T07:15:00Z", "event": "Full device reboot initiated"},
+        {"time": "2024-01-01T07:30:00Z", "event": "System restored after reboot"}
+      ],
+      "resolution": "Emergency reboot of ROUTER-LAB-01. Upgraded IOS-XE from 17.6.1 to 17.9.3 to fix memory leak bug. Note: ROUTER-LAB-02 already running 17.9.3 was unaffected.",
+      "resolution_commands": [
+        "reload",
+        "upgrade rom-monitor filename bootflash:asr9k-rommon.pkg",
+        "install add file bootflash:asr9000-universalk9_npe-17.09.03.SPA.bin activate commit"
+      ],
+      "similar_incidents": [],
+      "test_cases_blocked": [
+        "TC-ALPHA-001: BGP Convergence Test",
+        "TC-ALPHA-002: MPLS LSP Validation",
+        "TC-ALPHA-003: Traffic Engineering Test",
+        "TC-ALPHA-004: Failover Testing",
+        "TC-ALPHA-005: QoS Validation"
+      ]
+    },
+    {
+      "incident_id": "INC-2024-0310-002",
+      "title": "5G-UPF-01 crash causing 5G core failure",
+      "severity": "P1",
+      "status": "RESOLVED",
+      "created_at": "2024-03-10T11:00:00Z",
+      "updated_at": "2024-03-10T13:30:00Z",
+      "affected_devices": ["5G-UPF-01", "5G-AMF-01", "5G-SMF-01", "ENB-SIM-01"],
+      "lab_network": "NET-LAB-5G",
+      "symptom_description": "5G-UPF-01 crashed due to CPU and memory exhaustion. N4 interface between SMF and UPF went DOWN. N2 interface between AMF and eNodeB simulator also failed. All 5G test cases blocked.",
+      "alerts_triggered": [
+        "CPU_CRITICAL",
+        "MEMORY_CRITICAL",
+        "N4_INTERFACE_DOWN",
+        "N2_INTERFACE_DOWN",
+        "UPF_PROCESS_CRASH"
+      ],
+      "root_cause": "Resource exhaustion on 5G-UPF-01 caused by excessive PDU sessions during stress test. Nokia AirScale 23.R1.1 has known issue with PDU session cleanup not releasing memory properly.",
+      "timeline": [
+        {"time": "2024-03-10T11:00:00Z", "event": "5G-UPF-01 CPU reached 95% CRITICAL"},
+        {"time": "2024-03-10T11:05:00Z", "event": "5G-UPF-01 memory reached 99% CRITICAL"},
+        {"time": "2024-03-10T11:10:00Z", "event": "N4 interface DOWN - UPF unreachable"},
+        {"time": "2024-03-10T11:12:00Z", "event": "N2 interface DOWN - eNodeB lost connectivity"},
+        {"time": "2024-03-10T13:00:00Z", "event": "5G-UPF-01 restarted and PDU sessions cleared"},
+        {"time": "2024-03-10T13:30:00Z", "event": "All 5G interfaces restored"}
+      ],
+      "resolution": "Restarted 5G-UPF-01 container. Cleared all stale PDU sessions. Applied PDU session limit of 1000 concurrent sessions. Scheduled Nokia patch upgrade for next maintenance window.",
+      "resolution_commands": [
+        "kubectl rollout restart deployment/upf-01 -n 5g-core",
+        "kubectl exec -it upf-01-pod -- upfctl clear-sessions all",
+        "kubectl apply -f upf-session-limit-configmap.yaml"
+      ],
+      "similar_incidents": [],
+      "test_cases_blocked": [
+        "TC-5G-001: UE Registration Flow",
+        "TC-5G-002: PDU Session Establishment",
+        "TC-5G-003: Network Slicing Validation",
+        "TC-5G-004: Handover Testing",
+        "TC-5G-005: QoS Flow Verification"
+      ]
+    },
+    {
+      "incident_id": "INC-2024-0305-001",
+      "title": "SW-LAB-02 DOWN due to JunOS upgrade failure",
+      "severity": "P2",
+      "status": "RESOLVED",
+      "created_at": "2024-03-05T09:00:00Z",
+      "updated_at": "2024-03-05T11:00:00Z",
+      "affected_devices": ["SW-LAB-02", "ROUTER-LAB-03"],
+      "lab_network": "NET-LAB-BETA",
+      "symptom_description": "SW-LAB-02 went DOWN after JunOS upgrade from 21.2R1 to 21.4R2 failed mid-installation. Device stuck in boot loop.",
+      "alerts_triggered": [
+        "DEVICE_DOWN",
+        "UPGRADE_FAILURE"
+      ],
+      "root_cause": "Incompatible configuration syntax between JunOS 21.2R1 and 21.4R2. Upgrade script did not perform pre-upgrade config validation causing boot failure.",
+      "timeline": [
+        {"time": "2024-03-05T09:00:00Z", "event": "JunOS upgrade initiated on SW-LAB-02"},
+        {"time": "2024-03-05T09:15:00Z", "event": "Upgrade failed - device entered boot loop"},
+        {"time": "2024-03-05T10:30:00Z", "event": "Recovery partition booted successfully"},
+        {"time": "2024-03-05T11:00:00Z", "event": "Device restored to JunOS 21.2R1"}
+      ],
+      "resolution": "Booted from recovery partition. Rolled back to JunOS 21.2R1. Performed config migration to new syntax before retrying upgrade.",
+      "resolution_commands": [
+        "request system reboot slice alternate media internal",
+        "request system software rollback",
+        "request system software add /var/tmp/junos-21.2R1.tgz"
+      ],
+      "similar_incidents": [],
+      "test_cases_blocked": [
+        "TC-BETA-001: VLAN Isolation Test",
+        "TC-BETA-002: Spanning Tree Convergence"
+      ]
+    }
+  ],
+  "open_p1_count": 1,
+  "resolved_this_week": 3,
+  "total_incidents": 5
+}

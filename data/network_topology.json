@@ -1,0 +1,224 @@
+{
+  "lab_networks": [
+    {
+      "network_id": "NET-LAB-ALPHA",
+      "description": "Primary R&D network for IP routing and feature development",
+      "devices": [
+        {"device_id": "D001", "device_name": "ROUTER-LAB-01", "role": "Core Router", "ip": "10.0.0.1"},
+        {"device_id": "D002", "device_name": "ROUTER-LAB-02", "role": "Core Router", "ip": "10.0.0.2"},
+        {"device_id": "D003", "device_name": "SW-LAB-01", "role": "Access Switch", "ip": "10.0.1.1"},
+        {"device_id": "D005", "device_name": "FW-LAB-01", "role": "Firewall", "ip": "10.0.2.1"},
+        {"device_id": "D006", "device_name": "LB-LAB-01", "role": "Load Balancer", "ip": "10.0.2.2"},
+        {"device_id": "D011", "device_name": "PKT-BROKER-01", "role": "Packet Broker", "ip": "10.0.3.1"},
+        {"device_id": "D012", "device_name": "NTP-SERVER-01", "role": "NTP Server", "ip": "10.0.0.10"},
+        {"device_id": "D013", "device_name": "DNS-SERVER-01", "role": "DNS Server", "ip": "10.0.0.11"},
+        {"device_id": "D014", "device_name": "MGMT-SW-01", "role": "Management Switch", "ip": "10.0.0.12"}
+      ],
+      "links": [
+        {
+          "link_id": "L001",
+          "source": "ROUTER-LAB-01",
+          "target": "ROUTER-LAB-02",
+          "link_type": "BGP_PEERING",
+          "interface_source": "GigabitEthernet0/2",
+          "interface_target": "GigabitEthernet0/1",
+          "bandwidth": "10Gbps",
+          "vlans": [],
+          "protocols": ["BGP", "OSPF"],
+          "mpls_lsps": 24,
+          "status": "DOWN"
+        },
+        {
+          "link_id": "L002",
+          "source": "ROUTER-LAB-01",
+          "target": "SW-LAB-01",
+          "link_type": "TRUNK",
+          "interface_source": "GigabitEthernet0/1",
+          "interface_target": "GigabitEthernet0/1",
+          "bandwidth": "10Gbps",
+          "vlans": [100, 200, 300],
+          "protocols": ["STP", "LLDP"],
+          "status": "DOWN"
+        },
+        {
+          "link_id": "L003",
+          "source": "ROUTER-LAB-02",
+          "target": "SW-LAB-01",
+          "link_type": "TRUNK",
+          "interface_source": "GigabitEthernet0/2",
+          "interface_target": "GigabitEthernet0/2",
+          "bandwidth": "10Gbps",
+          "vlans": [100, 200, 300],
+          "protocols": ["STP", "LLDP"],
+          "status": "UP"
+        },
+        {
+          "link_id": "L004",
+          "source": "ROUTER-LAB-01",
+          "target": "FW-LAB-01",
+          "link_type": "ROUTED",
+          "interface_source": "GigabitEthernet0/3",
+          "interface_target": "ethernet1/1",
+          "bandwidth": "10Gbps",
+          "vlans": [],
+          "protocols": ["OSPF"],
+          "status": "UP"
+        },
+        {
+          "link_id": "L005",
+          "source": "FW-LAB-01",
+          "target": "LB-LAB-01",
+          "link_type": "ROUTED",
+          "interface_source": "ethernet1/2",
+          "interface_target": "mgmt0",
+          "bandwidth": "1Gbps",
+          "vlans": [],
+          "protocols": [],
+          "status": "UP"
+        },
+        {
+          "link_id": "L006",
+          "source": "ROUTER-LAB-01",
+          "target": "PKT-BROKER-01",
+          "link_type": "SPAN",
+          "interface_source": "GigabitEthernet0/4",
+          "interface_target": "Port1",
+          "bandwidth": "10Gbps",
+          "vlans": [],
+          "protocols": [],
+          "status": "UP"
+        },
+        {
+          "link_id": "L007",
+          "source": "ROUTER-LAB-01",
+          "target": "NTP-SERVER-01",
+          "link_type": "MGMT",
+          "interface_source": "MgmtEth0/0",
+          "interface_target": "eth0",
+          "bandwidth": "1Gbps",
+          "vlans": [],
+          "protocols": ["NTP"],
+          "status": "UP"
+        },
+        {
+          "link_id": "L008",
+          "source": "ROUTER-LAB-01",
+          "target": "DNS-SERVER-01",
+          "link_type": "MGMT",
+          "interface_source": "MgmtEth0/0",
+          "interface_target": "eth0",
+          "bandwidth": "1Gbps",
+          "vlans": [],
+          "protocols": ["DNS"],
+          "status": "UP"
+        }
+      ],
+      "bgp_peers": [
+        {
+          "device": "ROUTER-LAB-01",
+          "peer_ip": "10.0.0.3",
+          "peer_device": "ROUTER-LAB-02",
+          "asn_local": 65001,
+          "asn_peer": 65002,
+          "status": "DOWN",
+          "hold_timer": 90,
+          "keepalive": 30
+        },
+        {
+          "device": "ROUTER-LAB-02",
+          "peer_ip": "10.0.0.1",
+          "peer_device": "ROUTER-LAB-01",
+          "asn_local": 65002,
+          "asn_peer": 65001,
+          "status": "DOWN",
+          "hold_timer": 90,
+          "keepalive": 30
+        }
+      ],
+      "mpls": {
+        "enabled": true,
+        "lsp_count_normal": 24,
+        "lsp_count_current": 12,
+        "affected_by": "L001"
+      }
+    },
+    {
+      "network_id": "NET-LAB-BETA",
+      "description": "Secondary network for regression testing",
+      "devices": [
+        {"device_id": "D004", "device_name": "SW-LAB-02", "role": "Agg Switch", "ip": "10.0.1.2"},
+        {"device_id": "D015", "device_name": "ROUTER-LAB-03", "role": "Core Router", "ip": "10.0.0.3"}
+      ],
+      "links": [
+        {
+          "link_id": "L009",
+          "source": "ROUTER-LAB-03",
+          "target": "SW-LAB-02",
+          "link_type": "TRUNK",
+          "interface_source": "ge-0/0/1",
+          "interface_target": "ge-0/0/0",
+          "bandwidth": "10Gbps",
+          "vlans": [400, 500],
+          "protocols": ["STP"],
+          "status": "DOWN"
+        }
+      ],
+      "bgp_peers": []
+    },
+    {
+      "network_id": "NET-LAB-5G",
+      "description": "5G core network for slicing and UPF testing",
+      "devices": [
+        {"device_id": "D007", "device_name": "5G-AMF-01", "role": "5G Core AMF", "ip": "10.1.0.1"},
+        {"device_id": "D008", "device_name": "5G-SMF-01", "role": "5G Core SMF", "ip": "10.1.0.2"},
+        {"device_id": "D009", "device_name": "5G-UPF-01", "role": "5G Core UPF", "ip": "10.1.0.3"},
+        {"device_id": "D010", "device_name": "ENB-SIM-01", "role": "eNodeB Simulator", "ip": "10.1.1.1"}
+      ],
+      "links": [
+        {
+          "link_id": "L010",
+          "source": "5G-AMF-01",
+          "target": "5G-SMF-01",
+          "link_type": "N11",
+          "interface_source": "eth0",
+          "interface_target": "eth0",
+          "bandwidth": "10Gbps",
+          "vlans": [],
+          "protocols": ["HTTP2"],
+          "status": "WARNING"
+        },
+        {
+          "link_id": "L011",
+          "source": "5G-SMF-01",
+          "target": "5G-UPF-01",
+          "link_type": "N4",
+          "interface_source": "eth1",
+          "interface_target": "eth0",
+          "bandwidth": "10Gbps",
+          "vlans": [],
+          "protocols": ["PFCP"],
+          "status": "DOWN"
+        },
+        {
+          "link_id": "L012",
+          "source": "5G-AMF-01",
+          "target": "ENB-SIM-01",
+          "link_type": "N2",
+          "interface_source": "eth2",
+          "interface_target": "eth0",
+          "bandwidth": "1Gbps",
+          "vlans": [],
+          "protocols": ["NGAP"],
+          "status": "DOWN"
+        }
+      ],
+      "affected_test_cases": [
+        "TC-5G-001: UE Registration Flow",
+        "TC-5G-002: PDU Session Establishment",
+        "TC-5G-003: Network Slicing Validation",
+        "TC-5G-004: Handover Testing",
+        "TC-5G-005: QoS Flow Verification"
+      ]
+    }
+  ]
+}

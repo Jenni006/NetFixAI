@@ -1,0 +1,31 @@
+2024-03-15T08:00:00Z [INFO]  ROUTER-LAB-01 | System startup complete | Uptime: 0s
+2024-03-15T08:05:00Z [INFO]  ROUTER-LAB-01 | BGP peer 10.0.0.3 established | Sessions: 3
+2024-03-15T08:05:00Z [INFO]  ROUTER-LAB-02 | BGP peer 10.0.0.1 established | Sessions: 3
+2024-03-15T08:08:00Z [INFO]  ROUTER-LAB-01 | OSPF neighbor 10.0.0.2 UP | Area: 0.0.0.0
+2024-03-15T08:10:22Z [WARN]  ROUTER-LAB-01 | High CPU utilization | CPU: 78%
+2024-03-15T08:11:00Z [WARN]  ROUTER-LAB-01 | Memory utilization high | MEM: 82%
+2024-03-15T08:12:00Z [WARN]  ROUTER-LAB-01 | Packet drop rate increasing | Drops: 120pps
+2024-03-15T08:13:00Z [WARN]  ROUTER-LAB-01 | BGP hold timer warning | Peer: 10.0.0.3
+2024-03-15T08:14:00Z [ERROR] ROUTER-LAB-01 | Memory utilization critical | MEM: 95%
+2024-03-15T08:15:00Z [ERROR] ROUTER-LAB-01 | Interface GigabitEthernet0/2 DOWN | Reason: Link failure
+2024-03-15T08:15:03Z [ERROR] ROUTER-LAB-01 | BGP peer 10.0.0.3 session dropped | Hold timer expired
+2024-03-15T08:15:10Z [ERROR] ROUTER-LAB-01 | OSPF neighbor 10.0.0.2 DOWN | Reason: Dead timer expired
+2024-03-15T08:15:30Z [ERROR] SW-LAB-01 | Uplink to ROUTER-LAB-01 lost | Port: GE0/1
+2024-03-15T08:16:00Z [ERROR] 5G-AMF-01 | N2 interface DOWN | Reason: Upstream router unreachable
+2024-03-15T08:16:30Z [ERROR] 5G-SMF-01 | N4 interface DOWN | Reason: UPF unreachable
+2024-03-15T08:17:00Z [CRIT]  ROUTER-LAB-01 | Core process crash: bgpd | Restart attempt 1/3
+2024-03-15T08:17:30Z [CRIT]  ROUTER-LAB-01 | Core process crash: bgpd | Restart attempt 2/3
+2024-03-15T08:18:00Z [CRIT]  ROUTER-LAB-01 | Core process crash: bgpd | Restart attempt 3/3
+2024-03-15T08:18:30Z [CRIT]  ROUTER-LAB-01 | bgpd process failed all restart attempts | Manual intervention required
+2024-03-15T08:19:00Z [ERROR] ROUTER-LAB-02 | BGP peer 10.0.0.1 session dropped | Peer unreachable
+2024-03-15T08:20:00Z [WARN]  SW-LAB-02 | Spanning tree topology change detected | VLAN: 100
+2024-03-15T08:25:00Z [INFO]  ROUTER-LAB-01 | CPU utilization normalizing | CPU: 60%
+2024-03-15T08:30:00Z [INFO]  ROUTER-LAB-01 | CPU utilization normal | CPU: 48%
+2024-03-15T08:35:00Z [INFO]  ROUTER-LAB-01 | bgpd process restarted by operator | PID: 4821
+2024-03-15T08:36:00Z [INFO]  ROUTER-LAB-01 | BGP peer 10.0.0.3 re-establishing | State: OPENSENT
+2024-03-15T08:37:00Z [INFO]  ROUTER-LAB-01 | BGP peer 10.0.0.3 established | Sessions: 3
+2024-03-15T08:37:30Z [INFO]  ROUTER-LAB-01 | Interface GigabitEthernet0/2 UP | Speed: 10Gbps
+2024-03-15T08:38:00Z [INFO]  SW-LAB-01 | Uplink to ROUTER-LAB-01 restored | Port: GE0/1
+2024-03-15T08:38:30Z [INFO]  5G-AMF-01 | N2 interface UP | Reason: Upstream router restored
+2024-03-15T08:39:00Z [INFO]  5G-SMF-01 | N4 interface UP | Reason: UPF reachable
+2024-03-15T08:40:00Z [INFO]  ROUTER-LAB-01 | System stable | All interfaces UP

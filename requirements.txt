@@ -1,0 +1,9 @@
+langchain
+langchain-groq
+chromadb
+streamlit
+pandas
+sentence-transformers
+networkx
+groq
+pyvis
