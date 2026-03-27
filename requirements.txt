@@ -7,3 +7,8 @@ sentence-transformers
 networkx
 groq
 pyvis
+fastapi
+uvicorn
+pydantic
+pandas
+numpy
