@@ -1,11 +1,15 @@
 import streamlit as st
 from src.agent import query_netfix, reset_conversation
+from src.knowledge_base import save_to_kb, search_kb, get_all_kb
+from src.runbook_generator import create_runbook_pdf
+import os
+from datetime import datetime
 
 st.set_page_config(
     page_title="NetFix AI",
     page_icon="🔧",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 st.markdown("""
@@ -307,6 +311,11 @@ if "chat_sessions" not in st.session_state:
 if "sidebar_open" not in st.session_state:
     st.session_state.sidebar_open = True
 
+if "last_rca" not in st.session_state:
+    st.session_state.last_rca = ""
+if "last_query" not in st.session_state:
+    st.session_state.last_query = ""
+
 # ── SIDEBAR ─────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
@@ -368,6 +377,62 @@ with st.sidebar:
                 st.session_state.chat_messages = sess["messages"].copy()
                 st.rerun()
 
+    # Actions
+    st.markdown('<div class="sb-sec" style="margin-top:10px;">Actions</div>', unsafe_allow_html=True)
+
+    if st.session_state.get("last_rca"):
+        if st.button("💾 Save to Knowledge Base", use_container_width=True, key="save_kb"):
+            st.session_state.show_kb_form = True
+
+        if st.button("📄 Generate Runbook PDF", use_container_width=True, key="gen_runbook"):
+            with st.spinner("Generating runbook PDF..."):
+                try:
+                    filepath = create_runbook_pdf(
+                        incident_id=f"INC-{datetime.now().strftime('%Y%m%d-%H%M')}",
+                        incident_description=st.session_state.last_query,
+                        rca_response=st.session_state.last_rca
+                    )
+                    with open(filepath, "rb") as f:
+                        st.download_button(
+                            label="⬇ Download Runbook",
+                            data=f,
+                            file_name=os.path.basename(filepath),
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+    if st.session_state.get("show_kb_form"):
+        with st.form("kb_form"):
+            st.markdown('<div style="padding:0 10px;">', unsafe_allow_html=True)
+            device = st.text_input("Device", placeholder="e.g. ROUTER-LAB-01")
+            symptoms = st.text_input("Symptoms", placeholder="e.g. BGP drop, CPU spike")
+            resolution = st.text_area("Resolution", placeholder="What fixed it?", height=80)
+            submitted = st.form_submit_button("Save", use_container_width=True)
+            if submitted and device and symptoms and resolution:
+                kb_id = save_to_kb(
+                    device=device,
+                    symptoms=symptoms,
+                    root_cause=st.session_state.last_rca[:300],
+                    resolution=resolution
+                )
+                st.success(f"Saved as {kb_id}")
+                st.session_state.show_kb_form = False
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    kb_entries = get_all_kb()
+    if kb_entries:
+        st.markdown('<div class="sb-sec" style="margin-top:10px;">Knowledge Base</div>', unsafe_allow_html=True)
+        for entry in kb_entries[-3:]:
+            st.markdown(f"""
+            <div style='padding:6px 16px; font-size:11px; color:#888;'>
+                <b style='color:#c96442;'>{entry['id']}</b> — {entry['device']}<br>
+                <span style='color:#555;'>{entry['symptoms'][:50]}...</span>
+            </div>
+            """, unsafe_allow_html=True)
+
     # Active Alerts
     st.markdown('<div class="sb-sec" style="margin-top:10px;">Active Alerts</div>', unsafe_allow_html=True)
     st.markdown("""
@@ -382,7 +447,6 @@ with st.sidebar:
 # ── MAIN AREA ───────────────────────────────────────────────────────────────────
 
 # Top bar with sidebar toggle
-tb_left, tb_right = st.columns([1, 20])
 
 tb_left, tb_right = st.columns([1, 20])
 
@@ -396,30 +460,17 @@ with tb_left:
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-if not st.session_state.sidebar_open:
-    st.markdown(
-        """
-        <style>
-        [data-testid="stSidebar"] {
-            transform: translateX(-100%);
-            position: absolute;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown(
-        """
-        <style>
-        [data-testid="stSidebar"] {
-            transform: translateX(0%);
-            position: relative;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+sidebar_style = f"""
+<style>
+[data-testid="stSidebar"] {{
+    transition: transform 0.3s ease;
+    transform: translateX({'0%' if st.session_state.sidebar_open else '-100%'});
+    position: relative;
+    z-index: 999;
+}}
+</style>
+"""
+st.markdown(sidebar_style, unsafe_allow_html=True)
 
 st.markdown("""
 <div class="topbar">
@@ -504,4 +555,6 @@ if send and user_input:
     with st.spinner("NetFix AI is analysing…"):
         response = query_netfix(user_input)
     st.session_state.chat_messages.append({"role": "assistant", "content": response})
+    st.session_state.last_rca = response
+    st.session_state.last_query = user_input
     st.rerun()
