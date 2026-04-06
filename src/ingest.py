@@ -79,14 +79,36 @@ with open("data/incident_tickets.json", "r") as f:
     tickets = json.load(f)
 
 for i, incident in enumerate(tickets["incidents"]):
-    timeline_text = " ".join([f"{e['time']}: {e['event']}" for e in incident["timeline"]])
-    resolution_text = incident.get("resolution", "Not yet resolved")
-    commands_text = ""
-    if "resolution_commands" in incident:
-        commands_text = "Resolution commands: " + ", ".join(incident["resolution_commands"])
-    text = f"Incident {incident['incident_id']}: {incident['title']}. Severity: {incident['severity']}. Status: {incident['status']}. Affected devices: {', '.join(incident['affected_devices'])}. Symptoms: {incident['symptom_description']}. Root cause: {incident['root_cause']}. Timeline: {timeline_text}. Resolution: {resolution_text}. {commands_text}"
+    timeline_text = " | ".join([f"{e['time']}: {e['event']}" for e in incident.get("timeline", [])])
+    alerts_text   = ", ".join(incident.get("alerts_triggered", []))
+    similar_text  = ", ".join(incident.get("similar_incidents", [])) or "none"
+    devices_text  = ", ".join(incident.get("affected_devices", []))
+    blocked_text  = ", ".join(incident.get("test_cases_blocked", [])) or "none"
+    commands_text = ", ".join(incident.get("resolution_commands", [])) or "none"
+
+    text = (
+        f"Incident {incident['incident_id']}: {incident['title']}. "
+        f"Severity: {incident['severity']}. Status: {incident['status']}. "
+        f"Network: {incident['lab_network']}. "
+        f"Affected devices: {devices_text}. "
+        f"Symptoms: {incident['symptom_description']}. "
+        f"Root cause: {incident['root_cause']}. "
+        f"Resolution: {incident.get('resolution') or 'Not yet resolved'}. "
+        f"Resolution commands: {commands_text}. "
+        f"Alerts triggered: {alerts_text}. "
+        f"Test cases blocked: {blocked_text}. "
+        f"Similar incidents: {similar_text}. "
+        f"Timeline: {timeline_text}."
+    )
+
     documents.append(text)
-    metadatas.append({"source": "incident", "incident_id": incident['incident_id'], "severity": incident['severity'], "status": incident['status'], "device": incident['affected_devices'][0]})
+    metadatas.append({
+        "source":      "incident",
+        "incident_id": incident["incident_id"],
+        "severity":    incident["severity"],
+        "status":      incident["status"],
+        "device":      incident["affected_devices"][0] if incident["affected_devices"] else "unknown"
+    })
     ids.append(f"incident_{i}")
 
 print(f"Embedding {len(documents)} documents...")

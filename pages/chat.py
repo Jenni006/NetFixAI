@@ -2,26 +2,32 @@ import streamlit as st
 from src.agent import query_netfix, reset_conversation
 
 st.set_page_config(
-    page_title="NetFix AI",
+    page_title="NetFix AI — Chat",
     page_icon="🔧",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
+
+# ── SESSION STATE INIT ──────────────────────────────────
+if "chat_messages"   not in st.session_state: st.session_state.chat_messages   = []
+if "chat_sessions"   not in st.session_state: st.session_state.chat_sessions   = []
+if "sidebar_visible" not in st.session_state: st.session_state.sidebar_visible = True
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
-    /* ── DARK BASE ───────────────────────────── */
+    /* ── BASE ── */
+    *, *::before, *::after { box-sizing: border-box; }
+
     html, body,
     [data-testid="stAppViewContainer"],
     [data-testid="stMain"], .main {
-        background-color: #171717 !important;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: #ececec;
+        background-color: #0d0d0d !important;
+        font-family: 'IBM Plex Sans', sans-serif;
+        color: #e0ddd8;
     }
 
-    /* kill all streamlit chrome + page nav */
     #MainMenu, footer, header,
     [data-testid="stToolbar"],
     [data-testid="stDecoration"],
@@ -31,473 +37,604 @@ st.markdown("""
 
     .block-container { padding: 0 !important; max-width: 100% !important; }
 
-    /* ── SIDEBAR ─────────────────────────────── */
+    /* ── SIDEBAR ── */
     [data-testid="stSidebar"] {
-        background-color: #0f0f0f !important;
-        border-right: 1px solid #222 !important;
+        background-color: #0a0a0a !important;
+        border-right: 1px solid #1a1a1a !important;
     }
     [data-testid="stSidebar"] > div:first-child { padding: 0 !important; }
 
     .sb-logo-row {
         display: flex; align-items: center; gap: 12px;
-        padding: 20px 18px 16px;
-        border-bottom: 1px solid #222;
+        padding: 22px 18px 18px;
+        border-bottom: 1px solid #1a1a1a;
+        margin-bottom: 4px;
     }
     .sb-logo {
-        width: 36px; height: 36px; background: linear-gradient(135deg, #d4714a, #c96442);
-        border-radius: 10px; display: flex; align-items: center;
-        justify-content: center; font-size: 18px; flex-shrink: 0;
+        width: 36px; height: 36px; background: #bf5c38;
+        border-radius: 8px; display: flex; align-items: center;
+        justify-content: center; font-size: 16px; flex-shrink: 0;
     }
-    .sb-name  { font-size: 14px; font-weight: 600; color: #ececec; letter-spacing: -0.01em; }
-    .sb-tag   { font-size: 11px; color: #555; margin-top: 2px; }
+    .sb-name  { font-size: 13px; font-weight: 600; color: #e0ddd8; }
+    .sb-tag   { font-size: 11px; color: #444; margin-top: 1px; font-family: 'IBM Plex Mono', monospace; }
 
     .sb-sec {
-        padding: 16px 18px 6px;
+        padding: 14px 18px 6px;
         font-size: 10px; font-weight: 600;
-        letter-spacing: 0.08em; text-transform: uppercase; color: #444;
+        letter-spacing: 0.12em; text-transform: uppercase; color: #333;
+        font-family: 'IBM Plex Mono', monospace;
     }
 
-    /* sidebar text input (search) */
-    [data-testid="stSidebar"] .stTextInput > div > div > input {
-        background: #1a1a1a !important;
-        border: 1px solid #282828 !important;
-        border-radius: 10px !important;
-        color: #ececec !important;
-        font-family: 'Inter', sans-serif !important;
-        font-size: 13px !important;
-        padding: 8px 14px !important;
-    }
-    [data-testid="stSidebar"] .stTextInput > div > div > input::placeholder { color: #444 !important; }
-    [data-testid="stSidebar"] .stTextInput > div > div { border: none !important; box-shadow: none !important; background: transparent !important; }
-    [data-testid="stSidebar"] .stTextInput > div { border: none !important; }
-    [data-testid="stSidebar"] .stTextInput label { display: none !important; }
-
-    /* alert chips */
-    .ac {
-        display: flex; align-items: center; gap: 10px;
-        padding: 7px 18px; font-size: 12.5px;
-    }
-    .adot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-    .adot-c { background: #e05252; }
-    .adot-w { background: #e0943a; }
-    .an  { color: #999; }
-    .as-c { color: #e05252; font-size: 10px; margin-left: auto; font-weight: 500; }
-    .as-w { color: #e0943a; font-size: 10px; margin-left: auto; font-weight: 500; }
-
-    /* sidebar all buttons */
+    /* ── SIDEBAR BUTTONS ── */
     [data-testid="stSidebar"] .stButton > button {
         background: transparent !important;
-        color: #888 !important;
+        color: #666 !important;
         border: none !important;
-        border-radius: 10px !important;
+        border-radius: 6px !important;
         font-size: 13px !important;
         font-weight: 400 !important;
+        font-family: 'IBM Plex Sans', sans-serif !important;
         text-align: left !important;
         height: auto !important;
-        padding: 8px 12px !important;
+        padding: 7px 12px !important;
         white-space: normal !important;
-        line-height: 1.45 !important;
+        line-height: 1.4 !important;
         width: 100% !important;
         margin: 1px 0 !important;
-        transition: all 0.15s ease !important;
+        transition: background 0.1s, color 0.1s !important;
     }
     [data-testid="stSidebar"] .stButton > button:hover {
-        background: #1a1a1a !important;
-        color: #ececec !important;
+        background: #141414 !important;
+        color: #e0ddd8 !important;
     }
-    /* new chat accent */
-    [data-testid="stSidebar"] div:nth-child(3) .stButton > button {
-        background: linear-gradient(135deg, #d4714a, #c96442) !important;
+
+    /* New Chat button - accent */
+    .new-chat-btn .stButton > button {
+        background: #bf5c38 !important;
         color: white !important;
+        border-radius: 6px !important;
         font-size: 13px !important;
         font-weight: 500 !important;
-        padding: 10px 16px !important;
+        padding: 9px 14px !important;
         margin-bottom: 4px !important;
+        font-family: 'IBM Plex Sans', sans-serif !important;
     }
-    [data-testid="stSidebar"] div:nth-child(3) .stButton > button:hover {
-        background: linear-gradient(135deg, #c96442, #b5573a) !important;
+    .new-chat-btn .stButton > button:hover {
+        background: #a84f30 !important;
         color: white !important;
     }
 
-    /* ── MAIN / CHAT ─────────────────────────── */
+    /* History buttons */
+    .hist-btn .stButton > button {
+        color: #555 !important;
+        font-size: 12px !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        padding: 6px 12px !important;
+        border-left: 2px solid transparent !important;
+        border-radius: 0 !important;
+    }
+    .hist-btn .stButton > button:hover {
+        color: #e0ddd8 !important;
+        border-left-color: #bf5c38 !important;
+        background: #111 !important;
+    }
+
+    /* Sidebar page links */
+    [data-testid="stSidebar"] .stPageLink a {
+        color: #666 !important; font-size: 13px !important;
+        font-family: 'IBM Plex Sans', sans-serif !important;
+        padding: 7px 12px !important; display: block !important;
+        text-decoration: none !important; border-radius: 6px !important;
+        transition: all 0.1s !important; margin: 1px 0 !important;
+    }
+    [data-testid="stSidebar"] .stPageLink a:hover {
+        background: #141414 !important; color: #e0ddd8 !important;
+    }
+
+    /* Alert items */
+    .alert-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 5px 18px; font-size: 11.5px;
+    }
+    .adot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+    .adot-c { background: #e05252; }
+    .adot-w { background: #d4943a; }
+    .aname  { color: #666; flex: 1; font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+    .astatus-c { color: #e05252; font-size: 10px; font-family: 'IBM Plex Mono', monospace; }
+    .astatus-w { color: #d4943a; font-size: 10px; font-family: 'IBM Plex Mono', monospace; }
+
+    /* ── TOPBAR ── */
     .topbar {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 16px 0 14px;
-        border-bottom: 1px solid #222;
-        max-width: 1000px; margin: 0 auto; padding-left: 24px; padding-right: 24px;
+        padding: 14px 28px;
+        border-bottom: 1px solid #1a1a1a;
+        background: #0d0d0d;
     }
-    .topbar-t { font-size: 14px; font-weight: 500; color: #ececec; letter-spacing: -0.01em; }
-    .topbar-r { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #555; }
-    .live { width: 7px; height: 7px; background: #3da05e; border-radius: 50%; animation: pulse 2s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .topbar-left { display: flex; align-items: center; gap: 14px; }
+    .topbar-t { font-size: 13px; font-weight: 500; color: #e0ddd8; }
+    .topbar-r { font-size: 11px; color: #444; font-family: 'IBM Plex Mono', monospace; display: flex; align-items: center; gap: 6px; }
+    .live-dot { width: 6px; height: 6px; background: #3da05e; border-radius: 50%;
+        display: inline-block; animation: blink 2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-    /* ── SIDEBAR TOGGLE ───────────────────────── */
-    .sb-toggle-wrap .stButton > button {
+    /* Toggle button in topbar */
+    .toggle-btn .stButton > button {
         background: transparent !important;
-        border: 1px solid #282828 !important;
-        border-radius: 10px !important;
-        color: #666 !important;
-        font-size: 18px !important;
-        padding: 4px 10px !important;
-        height: 36px !important;
-        width: 36px !important;
-        min-width: 36px !important;
+        border: 1px solid #1e1e1e !important;
+        border-radius: 6px !important;
+        color: #555 !important;
+        font-size: 14px !important;
+        padding: 4px 9px !important;
+        height: 30px !important;
+        width: 32px !important;
+        min-width: 32px !important;
         line-height: 1 !important;
-        transition: all 0.15s ease !important;
+        transition: all 0.1s !important;
     }
-    .sb-toggle-wrap .stButton > button:hover {
-        background: #1e1e1e !important;
-        border-color: #444 !important;
-        color: #ececec !important;
+    .toggle-btn .stButton > button:hover {
+        border-color: #333 !important;
+        color: #e0ddd8 !important;
+        background: #111 !important;
     }
 
-    /* ── EMPTY STATE ──────────────────────────── */
+    /* ── EMPTY STATE ── */
     .empty-wrap {
         display: flex; flex-direction: column; align-items: center;
-        text-align: center; padding: 120px 24px 40px; max-width: 1000px;
-        margin: 0 auto;
+        text-align: center; padding: 80px 24px 32px;
     }
     .empty-ic {
-        width: 56px; height: 56px;
-        background: linear-gradient(135deg, #d4714a, #c96442);
-        border-radius: 16px;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 28px; margin-bottom: 24px;
-        box-shadow: 0 8px 24px rgba(201,100,66,0.2);
+        width: 52px; height: 52px; background: #bf5c38;
+        border-radius: 12px; display: flex; align-items: center;
+        justify-content: center; font-size: 24px; margin-bottom: 20px;
     }
-    .empty-t {
-        font-size: 26px; font-weight: 600; color: #ececec;
-        letter-spacing: -0.03em; margin-bottom: 12px;
-    }
-    .empty-s {
-        font-size: 15px; color: #666; max-width: 420px;
-        line-height: 1.7; margin-bottom: 48px;
-    }
+    .empty-t { font-size: 22px; font-weight: 500; color: #e0ddd8; letter-spacing: -0.02em; margin-bottom: 10px; }
+    .empty-s { font-size: 14px; color: #555; max-width: 400px; line-height: 1.7; margin-bottom: 40px; }
 
-    /* suggestion buttons in main area */
-    .sug-wrap { max-width: 700px; margin: 0 auto; padding: 0 24px; width: 100%; }
+    /* Suggestion cards */
     .sug-wrap .stButton > button {
-        background: #1c1c1c !important;
-        border: 1px solid #282828 !important;
-        border-radius: 14px !important;
-        color: #999 !important;
-        font-family: 'Inter', sans-serif !important;
+        background: #111 !important;
+        border: 1px solid #1e1e1e !important;
+        border-radius: 8px !important;
+        color: #888 !important;
+        font-family: 'IBM Plex Sans', sans-serif !important;
         font-size: 13.5px !important;
         font-weight: 400 !important;
         text-align: left !important;
         height: auto !important;
-        padding: 16px 20px !important;
+        padding: 14px 18px !important;
         white-space: normal !important;
         line-height: 1.5 !important;
-        transition: all 0.2s ease !important;
+        transition: all 0.15s !important;
     }
     .sug-wrap .stButton > button:hover {
-        background: #222 !important;
-        border-color: #c96442 !important;
-        color: #ececec !important;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        border-color: #bf5c38 !important;
+        color: #e0ddd8 !important;
+        background: #131313 !important;
     }
 
-    /* ── MESSAGES ─────────────────────────────── */
-    .msg-row {
-        display: flex; gap: 16px; margin-bottom: 32px;
+    /* ── CHAT MESSAGES ── */
+    .chat-area {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 28px 24px 12px;
+    }
+
+    /* User message */
+    .msg-user {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 20px;
+        gap: 12px;
+        align-items: flex-end;
+    }
+    .bubble-user {
+        background: #1d1d1d;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px 16px 4px 16px;
+        padding: 14px 18px;
+        max-width: 70%;
+        font-size: 15px;
+        line-height: 1.65;
+        color: #ddd;
+        word-break: break-word;
+    }
+    .av-user {
+        width: 30px; height: 30px; border-radius: 50%;
+        background: #1e1e1e; border: 1px solid #2a2a2a;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; font-weight: 600; color: #666;
+        flex-shrink: 0;
+    }
+
+    /* Assistant message */
+    .msg-ai {
+        display: flex;
+        justify-content: flex-start;
+        margin-bottom: 24px;
+        gap: 12px;
         align-items: flex-start;
     }
-    .av {
-        width: 32px; height: 32px; border-radius: 50%;
+    .av-ai {
+        width: 30px; height: 30px; border-radius: 50%;
+        background: #bf5c38;
         display: flex; align-items: center; justify-content: center;
-        font-size: 12px; flex-shrink: 0; margin-top: 3px;
+        font-size: 14px;
+        flex-shrink: 0;
+        margin-top: 2px;
     }
-    .av-u { background: #282828; color: #999; font-weight: 600; }
-    .av-a { background: linear-gradient(135deg, #d4714a, #c96442); color: white; font-size: 14px; }
-    .mb   { flex: 1; min-width: 0; }
-    .ms   { font-size: 12px; font-weight: 500; color: #555; margin-bottom: 6px; }
-    .mt   { font-size: 15.5px; line-height: 1.75; color: #d4d4d4; word-break: break-word; }
-    .mt p { margin: 0 0 10px; }
-    .mt p:last-child { margin: 0; }
-    .mt code {
-        background: #222; padding: 2px 6px; border-radius: 5px;
-        font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #d4714a;
-    }
-    .mt pre {
-        background: #0e0e0e; color: #d4d4d4; padding: 16px 18px; border-radius: 12px;
-        overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px;
-        line-height: 1.65; margin: 12px 0; border: 1px solid #222;
-    }
-    .mt pre code { background: transparent; color: inherit; padding: 0; }
+    .bubble-ai-wrap { flex: 1; min-width: 0; }
+    .bubble-ai-name { font-size: 11px; color: #444; margin-bottom: 8px; font-family: 'IBM Plex Mono', monospace; }
 
-    /* ── INPUT BAR ────────────────────────────── */
+    /* AI bubble content rendered via st.markdown — override default styling */
+    .bubble-ai-wrap .stMarkdown p {
+        font-size: 15px !important;
+        line-height: 1.75 !important;
+        color: #ccc !important;
+        margin: 0 0 10px !important;
+    }
+    .bubble-ai-wrap .stMarkdown p:last-child { margin: 0 !important; }
+    .bubble-ai-wrap .stMarkdown code {
+        background: #1a1a1a;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 13px;
+        color: #bf5c38;
+    }
+    .bubble-ai-wrap .stMarkdown pre {
+        background: #0c0c0c;
+        border: 1px solid #1e1e1e;
+        border-radius: 8px;
+        padding: 14px 16px;
+        overflow-x: auto;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 13px;
+        line-height: 1.6;
+        color: #bbb;
+        margin: 10px 0;
+    }
+    .bubble-ai-wrap .stMarkdown ul, .bubble-ai-wrap .stMarkdown ol {
+        padding-left: 20px; color: #bbb;
+        font-size: 15px; line-height: 1.7;
+    }
+    .bubble-ai-wrap .stMarkdown h3 {
+        font-size: 14px; font-weight: 600; color: #e0ddd8;
+        margin: 14px 0 6px; letter-spacing: -0.01em;
+    }
+    .bubble-ai-wrap .stMarkdown strong { color: #e0ddd8; }
+
+    /* ── DIVIDER between msg groups ── */
+    .msg-divider { border: none; border-top: 1px solid #141414; margin: 4px 0 20px; }
+
+    /* ── INPUT BAR ── */
     .inp-outer {
-        max-width: 1000px; margin: 0 auto;
-        padding: 16px 24px 24px; box-sizing: border-box;
+        border-top: 1px solid #1a1a1a;
+        padding: 16px 28px 20px;
+        background: #0d0d0d;
+        max-width: 860px;
+        margin: 0 auto;
+        box-sizing: border-box;
+        width: 100%;
     }
     .inp-outer .stTextInput > div > div > input {
-        background: #1c1c1c !important; border: 1px solid #282828 !important;
-        border-radius: 22px !important;
-        outline: none !important; box-shadow: none !important;
-        font-family: 'Inter', sans-serif !important;
-        font-size: 14.5px !important; color: #ececec !important;
-        padding: 14px 22px !important;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+        background: #111 !important;
+        border: 1px solid #1e1e1e !important;
+        border-radius: 8px !important;
+        font-family: 'IBM Plex Sans', sans-serif !important;
+        font-size: 14px !important;
+        color: #e0ddd8 !important;
+        padding: 12px 18px !important;
+        transition: border-color 0.15s !important;
     }
     .inp-outer .stTextInput > div > div > input:focus {
-        border-color: #c96442 !important;
-        box-shadow: 0 0 0 3px rgba(201,100,66,0.12) !important;
+        border-color: #bf5c38 !important;
+        box-shadow: 0 0 0 3px rgba(191,92,56,.1) !important;
     }
-    .inp-outer .stTextInput > div > div > input::placeholder { color: #555 !important; }
+    .inp-outer .stTextInput > div > div > input::placeholder { color: #444 !important; }
     .inp-outer .stTextInput > div > div { border: none !important; background: transparent !important; box-shadow: none !important; }
     .inp-outer .stTextInput > div { border: none !important; }
     .inp-outer .stTextInput label { display: none !important; }
+
     .inp-outer .stButton > button {
-        background: linear-gradient(135deg, #d4714a, #c96442) !important;
+        background: #bf5c38 !important;
         color: white !important;
-        border: none !important; border-radius: 22px !important;
-        padding: 10px 24px !important; font-family: 'Inter', sans-serif !important;
-        font-size: 14px !important; font-weight: 500 !important;
-        height: 44px !important; white-space: nowrap !important;
-        transition: all 0.2s ease !important;
-        box-shadow: 0 2px 8px rgba(201,100,66,0.2) !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 0 22px !important;
+        height: 46px !important;
+        font-family: 'IBM Plex Sans', sans-serif !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        white-space: nowrap !important;
+        transition: background 0.1s !important;
     }
     .inp-outer .stButton > button:hover {
-        background: linear-gradient(135deg, #c96442, #b5573a) !important;
-        box-shadow: 0 4px 16px rgba(201,100,66,0.3) !important;
+        background: #a84f30 !important;
     }
 
     .footer-note {
-        text-align: center; font-size: 11.5px; color: #444;
-        margin-top: 8px; letter-spacing: 0.01em;
+        text-align: center; font-size: 11px; color: #2e2e2e;
+        margin-top: 8px; font-family: 'IBM Plex Mono', monospace;
     }
 
-    /* scrollable chat container */
-    [data-testid="stVerticalBlockBorderWrapper"] > div {
-        background: transparent !important;
-        border: none !important;
+    /* Search input in sidebar */
+    [data-testid="stSidebar"] .stTextInput > div > div > input {
+        background: #111 !important; border: 1px solid #1e1e1e !important;
+        border-radius: 6px !important; color: #888 !important;
+        font-size: 12px !important; padding: 7px 12px !important;
+        font-family: 'IBM Plex Mono', monospace !important;
     }
+    [data-testid="stSidebar"] .stTextInput > div > div > input::placeholder { color: #333 !important; }
+    [data-testid="stSidebar"] .stTextInput > div > div { border: none !important; box-shadow: none !important; background: transparent !important; }
+    [data-testid="stSidebar"] .stTextInput > div { border: none !important; }
+    [data-testid="stSidebar"] .stTextInput label { display: none !important; }
 
-    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #282828; border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background: #333; }
-
-    .sb-toggle-wrap {
-        position: fixed;
-        top: 14px;
-        left: 14px;
-        z-index: 999;
+    ::-webkit-scrollbar-thumb { background: #1e1e1e; border-radius: 10px; }
+            
+    /* ── MARKDOWN RENDERING IN CHAT ── */
+    .stMarkdown p {
+        font-size: 15px !important;
+        line-height: 1.75 !important;
+        color: #ccc !important;
+        margin: 0 0 8px !important;
     }
-
-    /* smooth sidebar animation */
-    [data-testid="stSidebar"] {
-        transition: transform 0.3s ease;
+    .stMarkdown strong {
+        color: #e0ddd8 !important;
+        font-weight: 600 !important;
+    }
+    .stMarkdown code {
+        background: #1a1a1a !important;
+        padding: 2px 7px !important;
+        border-radius: 4px !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 13px !important;
+        color: #bf5c38 !important;
+    }
+    .stMarkdown pre {
+        background: #0c0c0c !important;
+        border: 1px solid #1e1e1e !important;
+        border-radius: 8px !important;
+        padding: 14px 16px !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 13px !important;
+        line-height: 1.6 !important;
+        color: #bbb !important;
+        margin: 10px 0 !important;
+        overflow-x: auto !important;
+    }
+    .stMarkdown h2 {
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        color: #444 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.1em !important;
+        margin: 20px 0 8px !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+    }
+    .stMarkdown ul, .stMarkdown ol {
+        color: #bbb !important;
+        font-size: 15px !important;
+        line-height: 1.7 !important;
+        padding-left: 20px !important;
+    }
+    .stMarkdown hr {
+        border: none !important;
+        border-top: 1px solid #1e1e1e !important;
+        margin: 16px 0 !important;
+    }
+            
+        /* Metric tables */
+    .stMarkdown table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 8px 0 16px !important;
+        font-size: 13px !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+    }
+    .stMarkdown th {
+        display: none !important;
+    }
+    .stMarkdown td {
+        padding: 6px 12px !important;
+        border: none !important;
+        border-bottom: 1px solid #1a1a1a !important;
+        color: #888 !important;
+        vertical-align: top !important;
+    }
+    .stMarkdown td:first-child {
+        color: #555 !important;
+        width: 120px !important;
+        white-space: nowrap !important;
+    }
+    .stMarkdown td:last-child {
+        color: #ccc !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
+# ── SIDEBAR VISIBILITY CONTROL ──────────────────────────
+# Inject CSS to show/hide sidebar based on state
+if not st.session_state.sidebar_visible:
+    st.markdown("""
+    <style>
+    [data-testid="stSidebar"] { display: none !important; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# ── Session state ───────────────────────────────────────────────────────────────
-if "page" not in st.session_state:
-    st.session_state.page = "dashboard"
-
-if "chat_messages" not in st.session_state:
-    st.session_state.chat_messages = []
-if "chat_sessions" not in st.session_state:
-    st.session_state.chat_sessions = []  # list of {"title": str, "messages": list}
-
-if "sidebar_open" not in st.session_state:
-    st.session_state.sidebar_open = True
-
-# ── SIDEBAR ─────────────────────────────────────────────────────────────────────
+# ── SIDEBAR ─────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
     <div class="sb-logo-row">
         <div class="sb-logo">🔧</div>
         <div>
             <div class="sb-name">NetFix AI</div>
-            <div class="sb-tag">Network Troubleshooting Analyst</div>
+            <div class="sb-tag">chat analyst</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown('<div class="sb-sec">Navigation</div>', unsafe_allow_html=True)
+    with st.container():
+        st.page_link("app.py",        label="Dashboard",    use_container_width=True)
+        st.page_link("pages/chat.py", label="Chat Analyst", use_container_width=True)
 
-    if st.button("Dashboard", use_container_width=True):
-        st.session_state.page = "dashboard"
-        st.rerun()
-
-    if st.button("Chat", use_container_width=True):
-        st.session_state.page = "chat"
-        st.rerun()
-
-    # New conversation
-    st.markdown('<div style="padding:10px 14px 4px;">', unsafe_allow_html=True)
-    if st.button("＋  New conversation", key="new_chat", use_container_width=True):
-        if st.session_state.chat_messages:
-            first = st.session_state.chat_messages[0]["content"]
-            title = (first[:44] + "…") if len(first) > 44 else first
-            st.session_state.chat_sessions.insert(0, {
-                "title": title,
-                "messages": st.session_state.chat_messages.copy()
-            })
-        st.session_state.chat_messages = []
-        reset_conversation()
-        st.rerun()
+    # ── NEW CONVERSATION ─────────────────────────────────
+    st.markdown('<div style="padding: 10px 14px 4px;">', unsafe_allow_html=True)
+    with st.container():
+        st.markdown('<div class="new-chat-btn">', unsafe_allow_html=True)
+        if st.button("＋  New conversation", key="new_chat", use_container_width=True):
+            if st.session_state.chat_messages:
+                first = st.session_state.chat_messages[0]["content"]
+                title = (first[:44] + "…") if len(first) > 44 else first
+                st.session_state.chat_sessions.insert(0, {
+                    "title": title,
+                    "messages": st.session_state.chat_messages.copy()
+                })
+            st.session_state.chat_messages = []
+            reset_conversation()
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Chat history with search
+    # ── CHAT HISTORY ─────────────────────────────────────
     if st.session_state.chat_sessions:
         st.markdown('<div class="sb-sec">Chat History</div>', unsafe_allow_html=True)
-        st.markdown('<div style="padding:0 12px 6px;">', unsafe_allow_html=True)
-        search_q = st.text_input("s", placeholder="🔍  Search conversations…", key="hist_search", label_visibility="collapsed")
-        st.markdown('</div>', unsafe_allow_html=True)
-
+        with st.container():
+            search_q = st.text_input(
+                "s", placeholder="Search conversations…",
+                key="hist_search", label_visibility="collapsed"
+            )
         sessions_to_show = [
             s for s in st.session_state.chat_sessions
             if not search_q or search_q.lower() in s["title"].lower()
         ][:15]
-
         for idx, sess in enumerate(sessions_to_show):
-            if st.button(f"💬  {sess['title']}", key=f"hs_{idx}", use_container_width=True):
-                if st.session_state.chat_messages:
-                    first = st.session_state.chat_messages[0]["content"]
-                    title = (first[:44] + "…") if len(first) > 44 else first
-                    st.session_state.chat_sessions.insert(0, {
-                        "title": title,
-                        "messages": st.session_state.chat_messages.copy()
-                    })
-                st.session_state.chat_messages = sess["messages"].copy()
-                st.rerun()
+            with st.container():
+                st.markdown('<div class="hist-btn">', unsafe_allow_html=True)
+                if st.button(f"💬  {sess['title']}", key=f"hs_{idx}", use_container_width=True):
+                    if st.session_state.chat_messages:
+                        first = st.session_state.chat_messages[0]["content"]
+                        title = (first[:44] + "…") if len(first) > 44 else first
+                        st.session_state.chat_sessions.insert(0, {
+                            "title": title,
+                            "messages": st.session_state.chat_messages.copy()
+                        })
+                    st.session_state.chat_messages = sess["messages"].copy()
+                    st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
 
-    # Active Alerts
-    st.markdown('<div class="sb-sec" style="margin-top:10px;">Active Alerts</div>', unsafe_allow_html=True)
+    # ── ACTIVE ALERTS ────────────────────────────────────
+    st.markdown('<div class="sb-sec" style="margin-top:12px;">Active Alerts</div>', unsafe_allow_html=True)
     st.markdown("""
-    <div class="ac"><span class="adot adot-c"></span><span class="an">ROUTER-LAB-01</span><span class="as-c">DEGRADED</span></div>
-    <div class="ac"><span class="adot adot-c"></span><span class="an">SW-LAB-02</span><span class="as-c">DOWN</span></div>
-    <div class="ac"><span class="adot adot-c"></span><span class="an">5G-UPF-01</span><span class="as-c">ERROR</span></div>
-    <div class="ac"><span class="adot adot-w"></span><span class="an">5G-AMF-01</span><span class="as-w">WARNING</span></div>
-    <div class="ac"><span class="adot adot-w"></span><span class="an">5G-SMF-01</span><span class="as-w">WARNING</span></div>
+    <div class="alert-item"><span class="adot adot-c"></span><span class="aname">ROUTER-LAB-01</span><span class="astatus-c">DEGRADED</span></div>
+    <div class="alert-item"><span class="adot adot-c"></span><span class="aname">SW-LAB-02</span><span class="astatus-c">DOWN</span></div>
+    <div class="alert-item"><span class="adot adot-c"></span><span class="aname">5G-UPF-01</span><span class="astatus-c">ERROR</span></div>
+    <div class="alert-item"><span class="adot adot-w"></span><span class="aname">5G-AMF-01</span><span class="astatus-w">WARNING</span></div>
+    <div class="alert-item"><span class="adot adot-w"></span><span class="aname">5G-SMF-01</span><span class="astatus-w">WARNING</span></div>
     """, unsafe_allow_html=True)
 
+# ── TOPBAR ──────────────────────────────────────────────
+tb_col, title_col, status_col = st.columns([0.4, 6, 2])
 
-# ── MAIN AREA ───────────────────────────────────────────────────────────────────
-
-# Top bar with sidebar toggle
-tb_left, tb_right = st.columns([1, 20])
-
-tb_left, tb_right = st.columns([1, 20])
-
-with tb_left:
-    st.markdown('<div class="sb-toggle-wrap">', unsafe_allow_html=True)
-
-    arrow = "❮" if st.session_state.sidebar_open else "❯"
-
+with tb_col:
+    st.markdown('<div class="toggle-btn">', unsafe_allow_html=True)
+    arrow = "◁" if st.session_state.sidebar_visible else "▷"
     if st.button(arrow, key="sb_toggle"):
-        st.session_state.sidebar_open = not st.session_state.sidebar_open
-
+        st.session_state.sidebar_visible = not st.session_state.sidebar_visible
+        st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-if not st.session_state.sidebar_open:
-    st.markdown(
-        """
-        <style>
-        [data-testid="stSidebar"] {
-            transform: translateX(-100%);
-            position: absolute;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown(
-        """
-        <style>
-        [data-testid="stSidebar"] {
-            transform: translateX(0%);
-            position: relative;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+with title_col:
+    st.markdown('<div style="padding:6px 0;"><span style="font-size:13px; font-weight:500; color:#e0ddd8;">Network Troubleshooting</span></div>', unsafe_allow_html=True)
 
-st.markdown("""
-<div class="topbar">
-    <span class="topbar-t">Network Troubleshooting</span>
-    <span class="topbar-r"><span class="live"></span>Live data</span>
-</div>
-""", unsafe_allow_html=True)
+with status_col:
+    st.markdown('<div style="padding:6px 0; text-align:right;"><span style="font-size:11px; color:#444; font-family:\'IBM Plex Mono\',monospace;"><span style="display:inline-block; width:6px; height:6px; background:#3da05e; border-radius:50%; animation:blink 2s infinite;"></span> Live data</span></div>', unsafe_allow_html=True)
 
-# ── Empty state (with 4 suggestion cards) ──────────────────────────────────────
+st.markdown('<hr style="border:none; border-top:1px solid #1a1a1a; margin:0 0 0;">', unsafe_allow_html=True)
+
+# ── EMPTY STATE (suggestions) ────────────────────────────
 if not st.session_state.chat_messages:
-    st.markdown("""
-    <div class="empty-wrap">
-        <div class="empty-ic">🔧</div>
-        <div class="empty-t">How can I help your network?</div>
-        <div class="empty-s">I've analysed all syslogs, SNMP metrics, topology, and incident tickets. Ask anything about your lab.</div>
-    </div>
-    """, unsafe_allow_html=True)
+    _, center_col, _ = st.columns([1, 4, 1])
+    with center_col:
+        st.markdown("""
+        <div class="empty-wrap">
+            <div class="empty-ic">🔧</div>
+            <div class="empty-t">How can I help your network?</div>
+            <div class="empty-s">All syslogs, SNMP metrics, topology, and incident tickets are loaded. Ask anything about your lab.</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    with st.container():
-        st.markdown('<div class="sug-wrap">', unsafe_allow_html=True)
         suggestions = [
             "What happened to ROUTER-LAB-01 between 08:10 and 08:20?",
             "What is the blast radius of the 5G UPF crash?",
             "Has this BGP drop happened before in this network?",
             "Give me a summary of all open P1 incidents",
         ]
-        c1, c2 = st.columns(2)
-        for i, s in enumerate(suggestions):
-            with (c1 if i % 2 == 0 else c2):
-                if st.button(s, key=f"sug_{i}", use_container_width=True):
-                    st.session_state.chat_messages.append({"role": "user", "content": s})
-                    with st.spinner("Analysing…"):
-                        resp = query_netfix(s)
-                    st.session_state.chat_messages.append({"role": "assistant", "content": resp})
-                    st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container():
+            st.markdown('<div class="sug-wrap">', unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            for i, s in enumerate(suggestions):
+                with (c1 if i % 2 == 0 else c2):
+                    if st.button(s, key=f"sug_{i}", use_container_width=True):
+                        st.session_state.chat_messages.append({"role": "user", "content": s})
+                        with st.spinner("Analysing…"):
+                            resp = query_netfix(s)
+                        st.session_state.chat_messages.append({"role": "assistant", "content": resp})
+                        st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
+# ── CHAT CONVERSATION ────────────────────────────────────
 else:
-    # ── Conversation ────────────────────────────────────────────────────────────
-    msgs = st.container(height=520, border=False)
-    with msgs:
-        st.markdown('<div style="max-width:1000px; margin:0 auto; padding:28px 24px 8px;">', unsafe_allow_html=True)
-        for message in st.session_state.chat_messages:
-            if message["role"] == "user":
-                st.markdown(f"""
-                <div class="msg-row">
-                    <div class="av av-u">Y</div>
-                    <div class="mb">
-                        <div class="ms">You</div>
-                        <div class="mt"><p>{message['content']}</p></div>
-                    </div>
-                </div>""", unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div class="msg-row">
-                    <div class="av av-a">🔧</div>
-                    <div class="mb">
-                        <div class="ms">NetFix AI</div>
-                    </div>
-                </div>""", unsafe_allow_html=True)
-                st.markdown(message['content'])
-        st.markdown('</div>', unsafe_allow_html=True)
+    _, chat_col, _ = st.columns([0.2, 8, 0.2])
+    with chat_col:
+        msgs_container = st.container(height=520, border=False)
+        with msgs_container:
+            st.markdown('<div class="chat-area">', unsafe_allow_html=True)
 
-# ── Input bar ───────────────────────────────────────────────────────────────────
-st.markdown('<div class="inp-outer">', unsafe_allow_html=True)
-ic, bc = st.columns([7, 1])
-with ic:
-    user_input = st.text_input(
-        "i", placeholder="Ask about any device, incident, or network issue…",
-        label_visibility="collapsed", key="chat_input"
-    )
-with bc:
-    send = st.button("Send ↑", type="primary", use_container_width=True)
-st.markdown(
-    '<p class="footer-note">NetFix AI can make mistakes. Always verify critical changes before applying.</p>',
-    unsafe_allow_html=True
-)
-st.markdown('</div>', unsafe_allow_html=True)
+            for i, message in enumerate(st.session_state.chat_messages):
+                if message["role"] == "user":
+                    st.markdown(f"""
+                    <div class="msg-user">
+                        <div class="bubble-user">{message['content']}</div>
+                        <div class="av-user">YOU</div>
+                    </div>""", unsafe_allow_html=True)
+
+                else:
+                    # Two-column layout: avatar | content
+                    av_col, content_col = st.columns([0.06, 0.94])
+                    with av_col:
+                        st.markdown('<div class="av-ai">🔧</div>', unsafe_allow_html=True)
+                    with content_col:
+                        st.markdown('<div class="bubble-ai-name">NetFix AI</div>', unsafe_allow_html=True)
+                        st.markdown(message["content"])
+
+                    if i < len(st.session_state.chat_messages) - 1:
+                        st.markdown('<hr class="msg-divider">', unsafe_allow_html=True)
+
+            st.markdown('</div>', unsafe_allow_html=True)
+
+# ── INPUT BAR ───────────────────────────────────────────
+_, inp_col, _ = st.columns([0.2, 8, 0.2])
+with inp_col:
+    st.markdown('<div class="inp-outer">', unsafe_allow_html=True)
+    ic, bc = st.columns([8, 1])
+    with ic:
+        # Pre-fill from dashboard if set
+        default_val = st.session_state.pop("dashboard_query", "")
+        user_input = st.text_input(
+            "i",
+            placeholder="Ask about any device, incident, or network issue…",
+            label_visibility="collapsed",
+            key="chat_input",
+            value=default_val
+        )
+    with bc:
+        send = st.button("Send ↑", use_container_width=True)
+
+    st.markdown('<p class="footer-note">NetFix AI can make mistakes. Always verify before applying changes.</p>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 if send and user_input:
     st.session_state.chat_messages.append({"role": "user", "content": user_input})
